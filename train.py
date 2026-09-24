@@ -161,15 +161,16 @@ def train(args):
                     view2   = view2.to(device)   # (B, 1, D, H, W)
                     labels  = labels.to(device)
 
-                    # Classification loss: use view1 through the standard fc head
-                    logits = classifier(view1)
+                    # view1 needs both the classification logits and the
+                    # contrastive embedding — get both from a single shared
+                    # backbone pass instead of forwarding view1 twice.
+                    logits, emb1 = classifier(view1, return_both=True)   # (B, C), (B, proj_dim)
                     ce_loss = criterion(logits, labels)
 
                     # Contrastive loss:
                     #   1. Get L2-normalized projections for both views
                     #   2. Concatenate to shape (2*B, proj_dim)
                     #   3. SupConLoss uses labels to identify which pairs are positive
-                    emb1 = classifier(view1, return_embedding=True)   # (B, proj_dim)
                     emb2 = classifier(view2, return_embedding=True)   # (B, proj_dim)
                     features = torch.cat([emb1, emb2], dim=0)         # (2*B, proj_dim)
                     con_loss = supcon(features, labels)

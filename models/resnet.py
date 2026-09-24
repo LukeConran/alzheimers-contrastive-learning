@@ -209,13 +209,18 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x, return_embedding=False):
+    def forward(self, x, return_embedding=False, return_both=False):
         """
         Args:
             x (Tensor): Input 3D MRI volume, shape (B, 1, D, H, W).
             return_embedding (bool):
                 False → classification logits via self.fc  (cross-entropy mode)
                 True  → L2-normalized projection embedding  (contrastive mode)
+            return_both (bool):
+                True → (logits, embedding), computed from a single shared
+                backbone pass. Takes precedence over return_embedding. Use
+                this when you need both from the same input (e.g. view1 in
+                contrastive training) instead of calling forward() twice.
         """
         # ── Shared backbone (3D ResNet encoder) ──────────────────────────────
         x = self.conv1(x)
@@ -228,6 +233,11 @@ class ResNet(nn.Module):
         x = self.layer4(x)
         x = self.avgpool(x)
         feat = x.view(x.size(0), -1)   # (B, feat_dim)
+
+        if return_both:
+            logits = self.fc(feat)
+            embedding = F.normalize(self.projector(feat), dim=1)
+            return logits, embedding
 
         # ── Contrastive path: project and normalize ───────────────────────────
         if return_embedding:
