@@ -6,3 +6,5 @@ MedicalNet_pytorch_files2/
 pretrain/
 data/*.npz
 literature/
+.DS_Store
+.vscode/

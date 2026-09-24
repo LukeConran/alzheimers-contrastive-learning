@@ -25,24 +25,19 @@ Final-epoch metrics from `results/{backbone}/{mode}/metrics.json` (50 epochs, sa
 
 **ResNet-10** is the clearest result: CE overfits hard (val accuracy collapses to 0.36 despite 0.69 train accuracy, val loss balloons to 3.78), while SupCon generalizes far better (0.60 val accuracy, 0.85 val loss) despite lower training accuracy. **ResNet-18** has enough capacity that both modes generalize reasonably, but SupCon still edges out CE on validation accuracy and has substantially lower validation loss — consistent with the contrastive term acting as a regularizer, not just an accuracy booster.
 
-### Figures
+### Figures (ResNet-18)
 
-Per-backbone confusion matrices, ROC curves, training curves, and a direct comparison plot are in [`figures/resnet10/`](figures/resnet10/) and [`figures/resnet18/`](figures/resnet18/):
+Confusion matrices, ROC curves, training curves, and a direct comparison plot are in [`figures/resnet18/`](figures/resnet18/). (ResNet-10 runs the same comparison — see the Results table above — but its figures are omitted here since ResNet-18 is the backbone with enough capacity for both modes to generalize.)
 
-**ResNet-10**
-
-![Comparison](figures/resnet10/comparison.png)
-![Training curves](figures/resnet10/training_curves.png)
-
-| CE | SupCon |
-|---|---|
-| ![ROC CE](figures/resnet10/roc_ce.png) | ![ROC SupCon](figures/resnet10/roc_supcon.png) |
-| ![CM CE](figures/resnet10/cm_ce.png) | ![CM SupCon](figures/resnet10/cm_supcon.png) |
-
-**ResNet-18**
+The metric comparison below is the clearest single view of the result: SupCon edges out CE on validation accuracy while training to a lower validation loss.
 
 ![Comparison](figures/resnet18/comparison.png)
+
+Training curves show *how* each run got there — CE and SupCon both converge without the overfitting collapse seen on ResNet-10, but SupCon's validation loss stays lower throughout training, consistent with the contrastive term acting as a regularizer.
+
 ![Training curves](figures/resnet18/training_curves.png)
+
+ROC and confusion-matrix pairs below let you compare per-class separability and error patterns directly: look for tighter clustering along the diagonal in the SupCon confusion matrix and higher AUC in the SupCon ROC curves.
 
 | CE | SupCon |
 |---|---|
@@ -72,6 +67,16 @@ Images are `.npz` files with key `"image_mr"` (3D float array, shape `(D, H, W)`
 Label mapping: `"Alzheimer's Disease" → 0`, `"Mild Cognitive Impairment" → 1`, `"Normal Cognition" → 2`.
 
 > The raw ADNI JSON uses `"Dementia"` instead of `"Alzheimer's Disease"` — `MyDataSet.py` already handles this mapping.
+
+## Environment
+
+This project runs on an HPC cluster via SLURM, not a local install — there's no `pip install` step because the cluster provides pinned modules directly:
+
+```bash
+module load GCC/12.3.0 OpenMPI/4.1.5 PyTorch/2.1.2-CUDA-12.1.1 scikit-learn/1.3.1
+```
+
+Every script under `bin/` loads these modules before running Python; see any `.slurm` file there for the full pattern.
 
 ## Reproducing the CE vs. SupCon comparison
 
@@ -114,6 +119,8 @@ python train.py ... --resume /home/lukeconran/alzheimers/results/ce/model_resnet
 
 **End-to-end reproduction of the comparison above:** run `bin/ce/train_resnet10.slurm` and `bin/contrastive/train_resnet10.slurm` (and the `resnet18` variants) in parallel, evaluate each with `test.py` for per-class accuracy/AUC/precision/recall, then run `plot.py` to regenerate the figures in `figures/`.
 
+**Quick smoke test on a small subset:** `bin/ce/smoke_resnet10.slurm` and `bin/contrastive/smoke_resnet10.slurm` (and the `resnet18` variants) run the same pipeline for a single epoch, useful for confirming the environment and data paths work before committing to a full 50–100 epoch run.
+
 ## MRI-safe augmentations
 
 Applied only during contrastive training, in `ContrastiveDataset._augment()`:
@@ -124,7 +131,6 @@ Applied only during contrastive training, in `ContrastiveDataset._augment()`:
 ## Limitations
 
 - **SimCLR is not viable with ADNI alone.** As explained above, self-supervised pretraining needs an unlabeled pool to be worth anything, and ADNI is fully labeled — there's nothing to pretrain on without pulling in a separate corpus (e.g. UK Biobank).
-- `medicalnet_model.py` imports `swintransformer` and `resnet_20_head`, which have no corresponding files in `models/` — this raises an `ImportError` on import even if those code paths aren't used. Avoid `generate_model_swin()` and `model_name='resnet50_atrophy'` until resolved.
 
 ## References
 

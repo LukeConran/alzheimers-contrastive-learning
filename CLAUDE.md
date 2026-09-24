@@ -77,7 +77,3 @@ Applied only during contrastive training in `ContrastiveDataset._augment()`:
 The core experiment is **CE vs SupCon**: does supervised contrastive learning improve classification performance given the same labeled dataset? Run `bin/train_ce.slurm` and `bin/train_contrastive.slurm` in parallel and compare per-class accuracy, AUC, precision, and recall from `test.py`.
 
 **SimCLR is not viable with ADNI alone.** The original motivation (reducing clinician labeling burden) is not addressed by SupCon since it requires labels. SimCLR would fix this but needs a large unlabeled MRI pool — ADNI is fully labeled, so there is nothing to pretrain on without a separate dataset (e.g. UK Biobank).
-
-## Known Issues
-
-- `medicalnet_model.py` line 3 imports `swintransformer` and `resnet_20_head` which have no corresponding files in `models/` — this causes an `ImportError` on import even if those code paths aren't used. Files were likely on the original developer's cluster but never committed. Avoid using `generate_model_swin()` or `model_name='resnet50_atrophy'` until resolved.
