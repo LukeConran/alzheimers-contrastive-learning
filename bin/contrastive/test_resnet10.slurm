@@ -15,8 +15,8 @@ module load GCC/12.3.0 OpenMPI/4.1.5 PyTorch/2.1.2-CUDA-12.1.1 scikit-learn/1.3.
 python test.py \
     --test_json /scratch/group/optmai/chenlang/ADNI/text_data/test/data.json \
     --test_image_dir /scratch/group/optmai/chenlang/ADNI/image_data/test/ \
-    --checkpoint /home/lukeconran/alzheimers/results/contrastive/best_model_resnet10_bs16.pth \
+    --checkpoint /home/lukeconran/alzheimers/results/resnet10/contrastive/best_model_resnet10_bs16.pth \
     --backbone resnet \
     --model_name resnet10 \
     --batch_size 16 \
-    --save_preds /home/lukeconran/alzheimers/results/contrastive/preds.npz
+    --save_preds /home/lukeconran/alzheimers/results/resnet10/contrastive/preds.npz

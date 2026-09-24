@@ -114,7 +114,7 @@ When used, the backbone trains at `--lr` and the classification head trains at `
 **Resuming a timed-out job:**
 
 ```bash
-python train.py ... --resume /home/lukeconran/alzheimers/results/ce/model_resnet10_bs8_epoch_20.pth --epochs 30
+python train.py ... --resume /home/lukeconran/alzheimers/results/resnet10/ce/model_resnet10_bs8_epoch_20.pth --epochs 30
 ```
 
 **End-to-end reproduction of the comparison above:** run `bin/ce/train_resnet10.slurm` and `bin/contrastive/train_resnet10.slurm` (and the `resnet18` variants) in parallel, evaluate each with `test.py` for per-class accuracy/AUC/precision/recall, then run `plot.py` to regenerate the figures in `figures/`.
