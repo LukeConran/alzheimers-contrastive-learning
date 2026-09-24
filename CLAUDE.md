@@ -39,7 +39,7 @@ python train.py --backbone resnet --model_name resnet10 --lr 1e-4 --batch_size 8
 python train.py --contrastive --lambda_con 0.5 --temperature 0.1 ...
 ```
 
-When `--contrastive` is enabled, `ContrastiveDataset` returns two augmented views per scan and `SupConLoss` is added alongside cross-entropy. Note: contrastive mode runs 3 forward passes per batch vs 1 for CE — roughly 3x the compute cost per epoch.
+When `--contrastive` is enabled, `ContrastiveDataset` returns two augmented views per scan and `SupConLoss` is added alongside cross-entropy. Note: contrastive mode runs 2 backbone forward passes per batch vs 1 for CE — roughly 2x the compute cost per epoch. (Both the logits and the contrastive embedding for view1 come from one shared pass via `ResNet.forward(..., return_both=True)`.)
 
 **With MedicalNet pretrained weights (recommended):**
 

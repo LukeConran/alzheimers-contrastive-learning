@@ -101,7 +101,7 @@ python train.py \
   --contrastive --lambda_con 0.5 --temperature 0.1
 ```
 
-With `--contrastive`, `ContrastiveDataset` returns two augmented views per scan and `SupConLoss` is added alongside cross-entropy, so this costs roughly **3x the forward-pass compute per epoch** compared to CE.
+With `--contrastive`, `ContrastiveDataset` returns two augmented views per scan and `SupConLoss` is added alongside cross-entropy. Each view requires its own backbone forward pass, so this costs roughly **2x the forward-pass compute per epoch** compared to CE — both the classification logits and the contrastive embedding for view1 are computed from a single shared pass (see `ResNet.forward(..., return_both=True)`), rather than the naive 3x you'd get from forwarding view1 twice.
 
 **With MedicalNet pretrained weights (recommended):**
 
