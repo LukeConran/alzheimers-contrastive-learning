@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import time
+import datetime
 import numpy as np
 import torch
 import torch.nn as nn
@@ -38,6 +39,10 @@ def get_3d_sincos_pos_embed(D, H, W, dim, device):
 
 
 def train(args):
+    # ── Training-run timing ───────────────────────────────────────────────────
+    train_start = time.time()
+    print(f"Training started at {datetime.datetime.now().isoformat(timespec='seconds')}", flush=True)
+
     # ── Output directory ──────────────────────────────────────────────────────
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -241,6 +246,11 @@ def train(args):
         })
         with open(metrics_path, 'w') as f:
             json.dump(epoch_metrics, f, indent=2)
+
+    # ── Training-run timing ───────────────────────────────────────────────────
+    train_elapsed = time.time() - train_start
+    print(f"Training finished at {datetime.datetime.now().isoformat(timespec='seconds')} "
+          f"(total time: {train_elapsed/3600:.2f}h, {train_elapsed:.1f}s)", flush=True)
 
 
 if __name__ == "__main__":
