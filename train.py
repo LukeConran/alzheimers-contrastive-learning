@@ -67,16 +67,16 @@ def train(args):
     # The validation set always uses the standard dataset (no augmentation needed).
     if args.contrastive:
         print(f"Contrastive mode ON  (lambda={args.lambda_con}, temperature={args.temperature})")
-        train_dataset = datasets.MyDataSet.ContrastiveDataset(
+        train_dataset = datasets.mri_dataset.ContrastiveDataset(
             json_path=args.train_json, image_dir=args.train_image_dir
         )
     else:
         print("Contrastive mode OFF — standard cross-entropy training")
-        train_dataset = datasets.MyDataSet.MyDataset(
+        train_dataset = datasets.mri_dataset.MyDataset(
             json_path=args.train_json, image_dir=args.train_image_dir
         )
 
-    valid_dataset = datasets.MyDataSet.MyDataset(
+    valid_dataset = datasets.mri_dataset.MyDataset(
         json_path=args.valid_json, image_dir=args.valid_image_dir
     )
 

@@ -28,7 +28,7 @@ def test(args):
     model.eval()
 
     # 加载测试数据 Load test data
-    test_dataset = datasets.MyDataSet.MyDataset_test(json_path=args.test_json, image_dir=args.test_image_dir)
+    test_dataset = datasets.mri_dataset.MyDataset(json_path=args.test_json, image_dir=args.test_image_dir)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
     criterion = nn.CrossEntropyLoss()

@@ -4,7 +4,7 @@
 
 ## Project Structure
 
-- `datasets/MyDataSet.py` — All dataset classes (standard, contrastive, multi-task)
+- `datasets/mri_dataset.py` — Dataset classes (standard, contrastive)
 - `models/resnet.py` — 3D ResNet with dual-head (classification + contrastive projector)
 - `models/resnet_org.py` — Original baseline ResNet without contrastive support
 - `losses/supcon_loss.py` — Supervised Contrastive Loss (Khosla et al., NeurIPS 2020)

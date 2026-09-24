@@ -1,1 +1,1 @@
-from . import MyDataSet
+from . import mri_dataset

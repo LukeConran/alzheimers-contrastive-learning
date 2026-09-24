@@ -46,7 +46,7 @@ ROC and confusion-matrix pairs below let you compare per-class separability and 
 
 ## Project structure
 
-- `datasets/MyDataSet.py` — dataset classes: standard, contrastive (two augmented views per scan), and multi-task
+- `datasets/mri_dataset.py` — dataset classes: standard, contrastive (two augmented views per scan)
 - `models/resnet.py` — 3D ResNet with a dual head: classification logits *and* an L2-normalized 128-dim contrastive embedding
 - `models/resnet_org.py` — the original CE-only baseline ResNet, without the contrastive projector head
 - `losses/supcon_loss.py` — Supervised Contrastive Loss ([Khosla et al., NeurIPS 2020](https://arxiv.org/abs/2004.11362))
@@ -66,7 +66,7 @@ Images are `.npz` files with key `"image_mr"` (3D float array, shape `(D, H, W)`
 
 Label mapping: `"Alzheimer's Disease" → 0`, `"Mild Cognitive Impairment" → 1`, `"Normal Cognition" → 2`.
 
-> The raw ADNI JSON uses `"Dementia"` instead of `"Alzheimer's Disease"` — `MyDataSet.py` already handles this mapping.
+> The raw ADNI JSON uses `"Dementia"` instead of `"Alzheimer's Disease"` — `mri_dataset.py` already handles this mapping.
 
 ## Environment
 
