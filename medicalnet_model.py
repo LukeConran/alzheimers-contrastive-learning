@@ -3,6 +3,20 @@ from torch import nn
 from models import resnet
 
 
+def strip_module_prefix(state_dict):
+    """
+    Strip a leading "module." from state_dict keys.
+
+    Checkpoints saved from a DataParallel-wrapped model (including the
+    original MedicalNet pretrained weights, and any checkpoint saved by
+    this project before DataParallel was removed for single-GPU runs) have
+    this prefix; checkpoints saved from an unwrapped model don't. Applying
+    this unconditionally makes loading work either way.
+    """
+    return {(k[len("module."):] if k.startswith("module.") else k): v
+            for k, v in state_dict.items()}
+
+
 def generate_model(model_name='resnet10', num_seg_classes=3, no_cuda=False, phase='train', pretrain_path=None, new_layer_names=['avgpool','fc', 'fc_heads','fc_disease']):
 
     if model_name == 'resnet10':
@@ -16,15 +30,16 @@ def generate_model(model_name='resnet10', num_seg_classes=3, no_cuda=False, phas
     elif model_name == 'resnet152':
         model = resnet.resnet152(num_seg_classes=num_seg_classes) 
     if not no_cuda:
-        if torch.cuda.device_count()> 1:
-            model = model.cuda() 
+        if torch.cuda.device_count() > 1:
+            model = model.cuda()
             model = nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
-            net_dict = model.state_dict() 
+            net_dict = model.state_dict()
         else:
+            # Single GPU: skip DataParallel entirely — it has nothing to
+            # parallelize across and only adds scatter/gather overhead.
             import os
-            os.environ["CUDA_VISIBLE_DEVICES"]=str(0)
-            model = model.cuda() 
-            model = nn.DataParallel(model, device_ids=None)
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(0)
+            model = model.cuda()
             net_dict = model.state_dict()
     else:
         net_dict = model.state_dict()
@@ -33,7 +48,8 @@ def generate_model(model_name='resnet10', num_seg_classes=3, no_cuda=False, phas
     if phase != 'test' and pretrain_path:
         print ('loading pretrained model {}'.format(pretrain_path))
         pretrain = torch.load(pretrain_path)
-        pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
+        pretrain_state = strip_module_prefix(pretrain['state_dict'])
+        pretrain_dict = {k: v for k, v in pretrain_state.items() if k in net_dict.keys()}
          
         net_dict.update(pretrain_dict)
         missing, unexpected = model.load_state_dict(net_dict, strict=False)

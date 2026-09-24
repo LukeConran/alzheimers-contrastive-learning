@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import datasets
-from medicalnet_model import generate_model
+from medicalnet_model import generate_model, strip_module_prefix
 from sklearn.metrics import roc_auc_score, precision_score, recall_score
 import numpy as np
 
@@ -21,7 +21,7 @@ def test(args):
     if args.checkpoint is not None:
         print(f"Loading model checkpoint from {args.checkpoint}")
         state_dict = torch.load(args.checkpoint, map_location=device)
-        model.load_state_dict(state_dict)
+        model.load_state_dict(strip_module_prefix(state_dict))
     else:
         raise ValueError("Checkpoint path must be provided for testing.")
 

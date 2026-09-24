@@ -11,7 +11,7 @@ import models
 import datasets
 from losses import SupConLoss          # supervised contrastive loss
 
-from medicalnet_model import generate_model
+from medicalnet_model import generate_model, strip_module_prefix
 
 def get_3d_sincos_pos_embed(D, H, W, dim, device):
     def sincos_embedding(pos, dim_half):
@@ -48,6 +48,13 @@ def train(args):
 
     # ── Device setup ──────────────────────────────────────────────────────────
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # ── Mixed precision ───────────────────────────────────────────────────────
+    # autocast runs eligible ops (mainly the 3D convolutions) in FP16 on GPU;
+    # GradScaler keeps gradients numerically stable at that precision. Both are
+    # no-ops when there's no CUDA device, so this is safe on CPU too.
+    use_amp = device.type == "cuda"
+    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
     # ── Model and optimizer setup ─────────────────────────────────────────────
     if args.backbone == "resnet":
@@ -114,7 +121,7 @@ def train(args):
     best_val_acc = 0.0
     if args.resume:
         checkpoint = torch.load(args.resume, map_location=device)
-        classifier.load_state_dict(checkpoint['model'])
+        classifier.load_state_dict(strip_module_prefix(checkpoint['model']))
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
         start_epoch = checkpoint['epoch']
@@ -144,44 +151,46 @@ def train(args):
         # ── Per-batch training step ───────────────────────────────────────────
         for batch_idx, batch in enumerate(train_loader):
 
-            if args.contrastive:
-                # ── Contrastive + classification joint loss ───────────────────
-                # Batch contains two independently-augmented views of each scan.
-                # view1/view2 shape: (B, D, H, W) — channel dim added below.
-                view1, view2, labels = batch
-                view1   = view1.to(device)   # (B, 1, D, H, W)
-                view2   = view2.to(device)   # (B, 1, D, H, W)
-                labels  = labels.to(device)
+            with torch.cuda.amp.autocast(enabled=use_amp):
+                if args.contrastive:
+                    # ── Contrastive + classification joint loss ───────────────
+                    # Batch contains two independently-augmented views of each scan.
+                    # view1/view2 shape: (B, D, H, W) — channel dim added below.
+                    view1, view2, labels = batch
+                    view1   = view1.to(device)   # (B, 1, D, H, W)
+                    view2   = view2.to(device)   # (B, 1, D, H, W)
+                    labels  = labels.to(device)
 
-                # Classification loss: use view1 through the standard fc head
-                logits = classifier(view1)
-                ce_loss = criterion(logits, labels)
+                    # Classification loss: use view1 through the standard fc head
+                    logits = classifier(view1)
+                    ce_loss = criterion(logits, labels)
 
-                # Contrastive loss:
-                #   1. Get L2-normalized projections for both views
-                #   2. Concatenate to shape (2*B, proj_dim)
-                #   3. SupConLoss uses labels to identify which pairs are positive
-                emb1 = classifier(view1, return_embedding=True)   # (B, proj_dim)
-                emb2 = classifier(view2, return_embedding=True)   # (B, proj_dim)
-                features = torch.cat([emb1, emb2], dim=0)         # (2*B, proj_dim)
-                con_loss = supcon(features, labels)
+                    # Contrastive loss:
+                    #   1. Get L2-normalized projections for both views
+                    #   2. Concatenate to shape (2*B, proj_dim)
+                    #   3. SupConLoss uses labels to identify which pairs are positive
+                    emb1 = classifier(view1, return_embedding=True)   # (B, proj_dim)
+                    emb2 = classifier(view2, return_embedding=True)   # (B, proj_dim)
+                    features = torch.cat([emb1, emb2], dim=0)         # (2*B, proj_dim)
+                    con_loss = supcon(features, labels)
 
-                # Combined loss: cross-entropy + lambda * contrastive
-                # lambda_con controls the trade-off.
-                # Start with lambda=0.5 and tune; if val_acc drops, reduce it.
-                loss = ce_loss + args.lambda_con * con_loss
+                    # Combined loss: cross-entropy + lambda * contrastive
+                    # lambda_con controls the trade-off.
+                    # Start with lambda=0.5 and tune; if val_acc drops, reduce it.
+                    loss = ce_loss + args.lambda_con * con_loss
 
-            else:
-                # ── Standard cross-entropy only ───────────────────────────────
-                images, labels = batch
-                images = images.to(device)   # (B, 1, D, H, W)
-                labels = labels.to(device)
-                logits = classifier(images)
-                loss = criterion(logits, labels)
+                else:
+                    # ── Standard cross-entropy only ───────────────────────────
+                    images, labels = batch
+                    images = images.to(device)   # (B, 1, D, H, W)
+                    labels = labels.to(device)
+                    logits = classifier(images)
+                    loss = criterion(logits, labels)
 
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             total_loss += loss.item() * labels.size(0)
             correct += (logits.argmax(dim=1) == labels).sum().item()
@@ -202,7 +211,7 @@ def train(args):
         val_loss = 0
         val_correct = 0
         val_total = 0
-        with torch.no_grad():
+        with torch.no_grad(), torch.cuda.amp.autocast(enabled=use_amp):
             for images, labels in valid_loader:
                 images = images.to(device)   # (B, 1, D, H, W)
                 labels = labels.to(device)
