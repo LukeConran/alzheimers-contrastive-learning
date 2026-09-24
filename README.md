@@ -8,7 +8,7 @@ The original plan was **self-supervised contrastive learning** (SimCLR-style): p
 
 That plan ran into a structural problem: **ADNI, the dataset this project uses, is fully labeled.** There is no large unlabeled pool sitting alongside it, so every scan already has an AD / MCI / NC label. Self-supervised pretraining has nothing to offer when there's nothing unlabeled to pretrain on; the labeling-burden problem SimCLR was meant to solve doesn't exist within this dataset. (It would still be viable on a separate, mostly-unlabeled corpus like UK Biobank, but that's a different project.)
 
-So the project pivoted to a question that ADNI's data actually supports: **given labels, can we use them more effectively than cross-entropy alone?** Instead of self-supervised pretraining, this repo uses **Supervised Contrastive Loss** ([Khosla et al., NeurIPS 2020](https://arxiv.org/abs/2004.11362)), which pulls embeddings of the same class together and pushs different classes apart, using the labels directly. This is also trained jointly with (or ahead of) the classification head. The research question thus became:
+So the project pivoted to a question that ADNI's data supports: **given labels, can we use them more effectively than cross-entropy alone?** Instead of self-supervised pretraining, this repo uses **Supervised Contrastive Loss** ([Khosla et al., NeurIPS 2020](https://arxiv.org/abs/2004.11362)), which pulls embeddings of the same class together and pushs different classes apart, using the labels directly. This is also trained jointly with (or ahead of) the classification head. The research question thus became:
 
 > **Does supervised contrastive learning improve classification performance over plain cross-entropy, given the exact same labeled dataset and backbone?**
 
@@ -27,13 +27,13 @@ Final-epoch metrics from `results/{backbone}/{mode}/metrics.json` (50 epochs, sa
 
 ### Figures (ResNet-18)
 
-Confusion matrices, ROC curves, training curves, and a direct comparison plot are in [`figures/resnet18/`](figures/resnet18/). (ResNet-10 runs the same comparison — see the Results table above — but its figures are omitted here since ResNet-18 is the backbone with enough capacity for both modes to generalize.)
+Confusion matrices, ROC curves, training curves, and a direct comparison plot are in [`figures/resnet18/`](figures/resnet18/).
 
-The metric comparison below is the clearest single view of the result: SupCon edges out CE on validation accuracy while training to a lower validation loss.
+The metric comparison below is the clearest single view of the result: SupCon edges out CE on AUC while training to a lower validation loss.
 
 ![Comparison](figures/resnet18/comparison.png)
 
-Training curves show *how* each run got there — CE and SupCon both converge without the overfitting collapse seen on ResNet-10, but SupCon's validation loss stays lower throughout training, consistent with the contrastive term acting as a regularizer.
+Training curves show how each run got there, and we can see CE and SupCon both converge without the overfitting collapse seen on ResNet-10, but SupCon's validation loss stays lower throughout training, consistent with the contrastive term acting as a regularizer.
 
 ![Training curves](figures/resnet18/training_curves.png)
 
@@ -70,13 +70,13 @@ Label mapping: `"Alzheimer's Disease" → 0`, `"Mild Cognitive Impairment" → 1
 
 ## Environment
 
-This project runs on an HPC cluster via SLURM, not a local install — there's no `pip install` step because the cluster provides pinned modules directly:
+This project runs on an HPC cluster via SLURM, not a local install. Thus, there's no `pip install` step because the cluster provides pinned modules directly:
 
 ```bash
 module load GCC/12.3.0 OpenMPI/4.1.5 PyTorch/2.1.2-CUDA-12.1.1 scikit-learn/1.3.1
 ```
 
-Every script under `bin/` loads these modules before running Python; see any `.slurm` file there for the full pattern.
+Every script under `bin/` loads these modules before running Python. See any `.slurm` file there for the full pattern.
 
 ## Reproducing the CE vs. SupCon comparison
 
@@ -101,7 +101,7 @@ python train.py \
   --contrastive --lambda_con 0.5 --temperature 0.1
 ```
 
-With `--contrastive`, `ContrastiveDataset` returns two augmented views per scan and `SupConLoss` is added alongside cross-entropy — this costs roughly **3x the forward-pass compute per epoch** compared to CE.
+With `--contrastive`, `ContrastiveDataset` returns two augmented views per scan and `SupConLoss` is added alongside cross-entropy, so this costs roughly **3x the forward-pass compute per epoch** compared to CE.
 
 **With MedicalNet pretrained weights (recommended):**
 
@@ -130,10 +130,9 @@ Applied only during contrastive training, in `ContrastiveDataset._augment()`:
 
 ## Limitations
 
-- **SimCLR is not viable with ADNI alone.** As explained above, self-supervised pretraining needs an unlabeled pool to be worth anything, and ADNI is fully labeled — there's nothing to pretrain on without pulling in a separate corpus (e.g. UK Biobank).
+- **SimCLR is not viable with ADNI alone.** As explained above, self-supervised pretraining needs an unlabeled pool to be worth anything, and ADNI is fully labeled, so there's nothing to pretrain on without pulling in a separate corpus (e.g. UK Biobank).
 
 ## References
 
 - Khosla et al., *Supervised Contrastive Learning*, NeurIPS 2020 — [arXiv:2004.11362](https://arxiv.org/abs/2004.11362)
 - Chen et al., *A Simple Framework for Contrastive Learning of Visual Representations (SimCLR)*, ICML 2020 — [arXiv:2002.05709](https://arxiv.org/abs/2002.05709)
-- Related papers referenced during this project were collected locally under `literature/` (multimodal/multichannel contrastive learning for AD diagnosis, MRI-PET self-supervised learning). Not tracked in git — see `.gitignore`.
