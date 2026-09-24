@@ -2,13 +2,13 @@
 
 3D brain MRI classification into **Alzheimer's Disease (AD)**, **Mild Cognitive Impairment (MCI)**, and **Normal Cognition (NC)** using 3D ResNet backbones, comparing plain cross-entropy training against supervised contrastive pretraining. Runs on an HPC cluster via SLURM.
 
-## Motivation: why this repo looks the way it does
+## Motivation: Why this repo looks the way it does
 
-The original plan was **self-supervised contrastive learning** (SimCLR-style): pretrain a 3D ResNet encoder on a large pool of *unlabeled* MRI scans until it produced features that were easy to classify, then fine-tune a lightweight classifier on a much smaller labeled subset. The appeal was practical — clinician-labeled MRI scans are expensive to produce, so if a model could learn good representations from unlabeled scans first, the amount of labeled data (and clinician time) needed downstream would shrink substantially.
+The original plan was **self-supervised contrastive learning** (SimCLR-style): pretrain a 3D ResNet encoder on a large pool of *unlabeled* MRI scans until it produced features that were easy to classify, then fine-tune a lightweight classifier on a much smaller labeled subset. The appeal was practical: because clinician-labeled MRI scans are expensive to produce, if a model could learn good representations from unlabeled scans first, the amount of labeled data (and clinician time) needed downstream would shrink substantially.
 
-That plan ran into a structural problem: **ADNI, the dataset this project uses, is fully labeled.** There is no large unlabeled pool sitting alongside it — every scan already has an AD / MCI / NC label. Self-supervised pretraining has nothing to offer when there's nothing unlabeled to pretrain on; the labeling-burden problem SimCLR was meant to solve doesn't exist within this dataset. (It would still be viable on a separate, mostly-unlabeled corpus like UK Biobank, but that's a different project.)
+That plan ran into a structural problem: **ADNI, the dataset this project uses, is fully labeled.** There is no large unlabeled pool sitting alongside it, so every scan already has an AD / MCI / NC label. Self-supervised pretraining has nothing to offer when there's nothing unlabeled to pretrain on; the labeling-burden problem SimCLR was meant to solve doesn't exist within this dataset. (It would still be viable on a separate, mostly-unlabeled corpus like UK Biobank, but that's a different project.)
 
-So the project pivoted to a question that ADNI's data actually supports: **given labels, can we use them more effectively than cross-entropy alone?** Instead of self-supervised pretraining, this repo uses **Supervised Contrastive Loss** ([Khosla et al., NeurIPS 2020](https://arxiv.org/abs/2004.11362)) — pulling embeddings of the same class together and pushing different classes apart, using the labels directly — trained jointly with (or ahead of) the classification head. The research question became:
+So the project pivoted to a question that ADNI's data actually supports: **given labels, can we use them more effectively than cross-entropy alone?** Instead of self-supervised pretraining, this repo uses **Supervised Contrastive Loss** ([Khosla et al., NeurIPS 2020](https://arxiv.org/abs/2004.11362)), which pulls embeddings of the same class together and pushs different classes apart, using the labels directly. This is also trained jointly with (or ahead of) the classification head. The research question thus became:
 
 > **Does supervised contrastive learning improve classification performance over plain cross-entropy, given the exact same labeled dataset and backbone?**
 
@@ -23,7 +23,7 @@ Final-epoch metrics from `results/{backbone}/{mode}/metrics.json` (50 epochs, sa
 | ResNet-18 | CE | 0.958 | 0.669 | 1.016 |
 | ResNet-18 | SupCon | 0.767 | **0.679** | **0.756** |
 
-**ResNet-10** is the clearest result: CE overfits hard (val accuracy collapses to 0.36 despite 0.69 train accuracy, val loss balloons to 3.78), while SupCon generalizes far better (0.60 val accuracy, 0.85 val loss) despite lower training accuracy. **ResNet-18** has enough capacity that both modes generalize reasonably, but SupCon still edges out CE on validation accuracy and has substantially lower validation loss — consistent with the contrastive term acting as a regularizer, not just an accuracy booster.
+**ResNet-10** is the clearest result: CE overfits hard (val accuracy collapses to 0.36 despite 0.69 train accuracy, val loss balloons to 3.78), while SupCon generalizes far better (0.60 val accuracy, 0.85 val loss) despite lower training accuracy. **ResNet-18** has enough capacity that both modes generalize reasonably, but SupCon still edges out CE on validation accuracy and has substantially lower validation loss, being consistent with the contrastive term acting as a regularizer, not just an accuracy booster.
 
 ### Figures (ResNet-18)
 
