@@ -12,3 +12,4 @@ output/*
 !output/.gitkeep
 *.pth
 results/smoke/
+notebooks/
