@@ -11,3 +11,4 @@ literature/
 output/*
 !output/.gitkeep
 *.pth
+results/smoke/

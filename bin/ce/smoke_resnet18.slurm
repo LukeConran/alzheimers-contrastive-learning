@@ -26,4 +26,4 @@ python train.py \
     --model_name resnet18 \
     --checkpoint_pretrain /home/lukeconran/alzheimers/pretrain/resnet_18.pth \
     --label_smoothing 0.1 \
-    --output_dir /home/lukeconran/alzheimers/results/resnet18/ce
+    --output_dir /home/lukeconran/alzheimers/results/smoke/resnet18/ce
