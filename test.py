@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -28,7 +29,10 @@ def test(args):
     model.eval()
 
     # 加载测试数据 Load test data
-    test_dataset = datasets.mri_dataset.MyDataset(json_path=args.test_json, image_dir=args.test_image_dir)
+    test_cache_dir = os.path.join(args.cache_dir, "test") if args.cache_dir else None
+    test_dataset = datasets.mri_dataset.MyDataset(
+        json_path=args.test_json, image_dir=args.test_image_dir, cache_dir=test_cache_dir
+    )
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
     criterion = nn.CrossEntropyLoss()
@@ -109,6 +113,9 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, default='resnet10')
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--save_preds", type=str, default=None, help="Optional path to save predictions as .npz")
+    parser.add_argument("--cache_dir", type=str, default=None,
+                         help="Directory to persist normalized volumes as .npy files "
+                              "(e.g. a scratch path on HPC). Disabled by default.")
 
     args = parser.parse_args()
     print(args)

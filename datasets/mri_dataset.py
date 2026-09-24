@@ -13,17 +13,25 @@ LABEL_MAP = {
 
 
 class MyDataset(Dataset):
-    def __init__(self, json_path, image_dir, transform=None):
+    def __init__(self, json_path, image_dir, transform=None, cache_dir=None):
         """
         json_path: path to a JSON file containing {id, label} entries
         image_dir: directory containing all .npz image files (named 0.npz, 1.npz, ...)
         transform: optional image preprocessing function
+        cache_dir: optional directory to persist normalized volumes as .npy files.
+                   On a hit, normalization is skipped entirely; on a miss, the
+                   normalized volume is computed once and written there for
+                   every future epoch/run to reuse. Pass a scratch path on HPC
+                   to avoid recomputing normalization every epoch.
         """
         with open(json_path, 'r') as f:
             all_data = json.load(f)
 
         self.image_dir = image_dir
         self.transform = transform
+        self.cache_dir = cache_dir
+        if cache_dir is not None:
+            os.makedirs(cache_dir, exist_ok=True)
 
         # Keep only samples whose image file actually exists
         self.data = []
@@ -40,12 +48,24 @@ class MyDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
+    def _load_normalized(self, item):
+        if self.cache_dir is not None:
+            cache_path = os.path.join(self.cache_dir, f"{item['id']}.npy")
+            if os.path.exists(cache_path):
+                return np.load(cache_path)
+
+        image_path = os.path.join(self.image_dir, f"{item['id']}.npz")
+        image = np.load(image_path)["image_mr"]  # shape: (D, H, W)
+        image = self.__data_process__(image)
+
+        if self.cache_dir is not None:
+            np.save(cache_path, image)
+
+        return image
+
     def __getitem__(self, idx):
         item = self.data[idx]
-        image_path = os.path.join(self.image_dir, f"{item['id']}.npz")
-        image_npz = np.load(image_path)
-        image = image_npz["image_mr"]  # shape: (D, H, W)
-        image = self.__data_process__(image)
+        image = self._load_normalized(item)
         image_tensor = torch.from_numpy(image).float()
 
         label_text = item["label"]
@@ -131,19 +151,18 @@ class ContrastiveDataset(MyDataset):
                             z-scored volume (mean≈0, std≈1).
         scale_range (tuple): Min/max multiplicative intensity scaling factor.
                              (0.9, 1.1) means ±10% brightness variation.
+        cache_dir (str):    Optional directory to persist normalized volumes
+                            as .npy files (see MyDataset).
     """
 
-    def __init__(self, json_path, image_dir, noise_std=0.05, scale_range=(0.9, 1.1)):
-        super().__init__(json_path, image_dir)
+    def __init__(self, json_path, image_dir, noise_std=0.05, scale_range=(0.9, 1.1), cache_dir=None):
+        super().__init__(json_path, image_dir, cache_dir=cache_dir)
         self.noise_std = noise_std
         self.scale_range = scale_range
 
     def __getitem__(self, idx):
         item = self.data[idx]
-        image_path = os.path.join(self.image_dir, f"{item['id']}.npz")
-        image_npz = np.load(image_path)
-        image = image_npz["image_mr"]               # (D, H, W), raw volume
-        image = self.__data_process__(image)         # intensity normalization (from parent)
+        image = self._load_normalized(item)          # cached intensity-normalized volume
 
         # Apply two DIFFERENT random augmentations to the same normalized volume.
         # Each call to _augment samples new random values, so view1 ≠ view2.

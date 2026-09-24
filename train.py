@@ -65,19 +65,23 @@ def train(args):
     # When contrastive mode is on, use ContrastiveDataset which returns
     # (view1, view2, label) instead of (image, label).
     # The validation set always uses the standard dataset (no augmentation needed).
+    # IDs aren't unique across splits, so cache each split under its own subdirectory.
+    train_cache_dir = os.path.join(args.cache_dir, "train") if args.cache_dir else None
+    valid_cache_dir = os.path.join(args.cache_dir, "valid") if args.cache_dir else None
+
     if args.contrastive:
         print(f"Contrastive mode ON  (lambda={args.lambda_con}, temperature={args.temperature})")
         train_dataset = datasets.mri_dataset.ContrastiveDataset(
-            json_path=args.train_json, image_dir=args.train_image_dir
+            json_path=args.train_json, image_dir=args.train_image_dir, cache_dir=train_cache_dir
         )
     else:
         print("Contrastive mode OFF — standard cross-entropy training")
         train_dataset = datasets.mri_dataset.MyDataset(
-            json_path=args.train_json, image_dir=args.train_image_dir
+            json_path=args.train_json, image_dir=args.train_image_dir, cache_dir=train_cache_dir
         )
 
     valid_dataset = datasets.mri_dataset.MyDataset(
-        json_path=args.valid_json, image_dir=args.valid_image_dir
+        json_path=args.valid_json, image_dir=args.valid_image_dir, cache_dir=valid_cache_dir
     )
 
     print(f"Length of training dataset: {len(train_dataset)}")
@@ -256,6 +260,10 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, default='resnet10')
     parser.add_argument("--resume", type=str, default=None,
                         help="Path to a checkpoint (.pth) to resume training from.")
+    parser.add_argument("--cache_dir", type=str, default=None,
+                        help="Directory to persist normalized volumes as .npy files "
+                             "(e.g. a scratch path on HPC), avoiding recomputing "
+                             "normalization every epoch. Disabled by default.")
 
     # ── Contrastive learning arguments ────────────────────────────────────────
     parser.add_argument("--contrastive", action="store_true",
