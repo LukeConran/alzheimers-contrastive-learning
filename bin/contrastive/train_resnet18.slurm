@@ -18,7 +18,7 @@ python train.py \
     --valid_json /scratch/group/optmai/chenlang/ADNI/text_data/validation/data.json \
     --valid_image_dir /scratch/group/optmai/chenlang/ADNI/image_data/validation/ \
     --lr 1e-4 \
-    --batch_size 8 \
+    --batch_size 16 \
     --epochs 50 \
     --backbone resnet \
     --model_name resnet18 \
