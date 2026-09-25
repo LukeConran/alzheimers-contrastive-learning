@@ -101,7 +101,12 @@ def test(args):
 
     # 可选保存预测 Optional saving of predictions
     if args.save_preds:
-        np.savez(args.save_preds, predictions=all_preds, labels=all_labels, logits=all_logits)
+        # ids are saved in the same order as predictions/labels/logits (test_loader
+        # has shuffle=False, so this matches test_dataset.data's order) — this lets
+        # separate runs (e.g. CE vs SupCon) be paired up by subject for statistics
+        # like DeLong's test that require the exact same ordered test set.
+        ids = np.array([item["id"] for item in test_dataset.data])
+        np.savez(args.save_preds, predictions=all_preds, labels=all_labels, logits=all_logits, ids=ids)
         print(f"Saved predictions to {args.save_preds}")
 
 if __name__ == "__main__":

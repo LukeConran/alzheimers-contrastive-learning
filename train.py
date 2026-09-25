@@ -1,6 +1,7 @@
 import os
 import json
 import argparse
+import random
 import time
 import datetime
 import numpy as np
@@ -12,6 +13,13 @@ import datasets
 from losses import SupConLoss          # supervised contrastive loss
 
 from medicalnet_model import generate_model, strip_module_prefix
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 def get_3d_sincos_pos_embed(D, H, W, dim, device):
     def sincos_embedding(pos, dim_half):
@@ -39,9 +47,11 @@ def get_3d_sincos_pos_embed(D, H, W, dim, device):
 
 
 def train(args):
+    set_seed(args.seed)
+
     # ── Training-run timing ───────────────────────────────────────────────────
     train_start = time.time()
-    print(f"Training started at {datetime.datetime.now().isoformat(timespec='seconds')}", flush=True)
+    print(f"Training started at {datetime.datetime.now().isoformat(timespec='seconds')} (seed={args.seed})", flush=True)
 
     # ── Output directory ──────────────────────────────────────────────────────
     os.makedirs(args.output_dir, exist_ok=True)
@@ -284,6 +294,9 @@ if __name__ == "__main__":
                         help="Directory to persist normalized volumes as .npy files "
                              "(e.g. a scratch path on HPC), avoiding recomputing "
                              "normalization every epoch. Disabled by default.")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed (Python/NumPy/PyTorch). Vary this across "
+                             "runs (e.g. 0-4) for multi-seed reproducibility checks.")
 
     # ── Contrastive learning arguments ────────────────────────────────────────
     parser.add_argument("--contrastive", action="store_true",
